@@ -1,0 +1,79 @@
+services:
+  irishealth:
+    image: containers.intersystems.com/intersystems/irishealth-community:latest-em
+    container_name: fhirsqlllm
+    hostname: fhirsqlllm
+    ports:
+      - "52773:52773"   # Management Portal, FHIR endpoint, CSP chat page
+      - "1972:1972"     # superserver, for the VS Code ObjectScript extension
+    volumes:
+      # durable %SYS so the namespace, FHIR endpoint and loaded data survive
+      # a container rebuild
+      - ./data/durable:/durable
+      # source mounted read-write so VS Code can compile straight into IRIS
+      - ./src:/home/irisowner/src
+      # Synthea FHIR NDJSON + bundles, for the loader (300 patients, seed 20261101)
+      - ./data/synthea/fhir:/home/irisowner/fhirdata:ro
+      # setup scripts
+      - ./setup:/home/irisowner/setup
+      # the Bedrock token is written here by Production.ExportCredential() and
+      # read by the sidecar; a shared volume is the only path between the two
+      # containers that never involves a shell or a command line
+      - shared-secrets:/shared
+    environment:
+      - ISC_DATA_DIRECTORY=/durable/irissys
+    # The community image starts with a password that must be changed. Supply it
+    # from a file so it is not in the compose file or the shell history.
+    command: >
+      --check-caps false
+      --password-file /home/irisowner/setup/password.txt
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/usr/irissys/dev/Cloud/ICM/waitISC.sh"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 60s
+
+  # SapBERT embeddings and Bedrock invocation.
+  #
+  # A separate service, not Embedded Python, for two reasons: IRIS Embedded
+  # Python cannot see a venv (its sys.path is /durable/irissys/mgr/python plus
+  # the system dist-packages), and boto3 handles the AWS SigV4 that Bedrock
+  # demands and that ObjectScript would otherwise have to reimplement.
+  #
+  # network_mode: service:irishealth puts it on the IRIS container's network
+  # stack, so IRIS reaches it on 127.0.0.1:8088 with no exposed port.
+  sidecar:
+    image: containers.intersystems.com/intersystems/irishealth-community:latest-em
+    container_name: fhirsqlllm-sidecar
+    depends_on:
+      - irishealth
+    network_mode: "service:irishealth"
+    volumes:
+      - ./sidecar:/app:ro
+      - sidecar-venv:/venv
+      - shared-secrets:/shared
+    environment:
+      - AWS_REGION=us-east-1
+      # written by INT.FHIRSQLLLM.Production.ExportCredential(); the token never
+      # passes through a shell, a command line, or the process list
+      - BEDROCK_TOKEN_FILE=/shared/.bedrock_token
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        if [ ! -x /venv/bin/uvicorn ]; then
+          python3 -m venv /venv
+          /venv/bin/pip install --quiet --disable-pip-version-check \
+            torch --index-url https://download.pytorch.org/whl/cpu
+          /venv/bin/pip install --quiet --disable-pip-version-check \
+            transformers fastapi uvicorn boto3
+        fi
+        cd /app && exec /venv/bin/uvicorn app:app --host 127.0.0.1 --port 8088
+    restart: unless-stopped
+
+volumes:
+  sidecar-venv:
+  shared-secrets:

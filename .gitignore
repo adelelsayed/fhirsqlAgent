@@ -1,0 +1,37 @@
+# IRIS durable %SYS — contains the database, and therefore the ClaudeAPI
+# credential. Never commit, and never `docker commit` a running container.
+iris/data/
+
+# the IRIS instance password. password.txt.example is the template that ships;
+# the real file is consumed and zeroed by IRIS on first start, which renames it
+# to password.txt.done -- ignore both.
+iris/setup/password.txt
+iris/setup/password.txt.done
+
+# python/venv/scratch
+__pycache__/
+*.pyc
+.venv/
+
+# large source data
+experiments/*/data/raw/
+*.duckdb
+
+# ---------------------------------------------------------------------------
+# NOT FOR A PUBLIC REPOSITORY
+#
+# Internal research notes and handoff docs. PROJECT_STATUS.md records
+# confidential ML4H peer-review detail (reviewer ids, score movements) and
+# summarises figures from a confidentiality-marked reviewer copy that must not
+# be redistributed. STATUS_PHASE3B.md documents the local credential setup.
+# Keep both local; the public story lives in iris/README.md and iris/ARTICLE_DC.md.
+PROJECT_STATUS.md
+STATUS_PHASE3B.md
+miscellaneous/
+
+# Derived terminology datasets. 1,643 of 1,777 rows in resolver_external_all.jsonl
+# carry SNOMED CT description text in a code->term map. UAE SNOMED membership
+# covers USE; publishing descriptions on a public repo is redistribution to the
+# world, which needs an affiliate licence -- and git history keeps it after a
+# delete. Raw third-party catalogues are already excluded above.
+experiments/

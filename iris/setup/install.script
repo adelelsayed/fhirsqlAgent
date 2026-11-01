@@ -1,0 +1,104 @@
+// Namespace + FHIR R4 endpoint + source import.
+// Run with:  docker exec -i fhirsqlllm iris session IRIS < setup/install.script
+//
+// Idempotent: re-running skips what already exists.
+
+zn "%SYS"
+
+// ------------------------------------------------------------- SSL/TLS client
+// We are only ever an HTTPS *client* (LLM APIs, tx.fhir.org, RxNav), so the
+// configuration needs no certificate or key files on the server.
+//
+// VerifyPeer = 0 (none). That is fine for a demo on a network that already
+// intercepts TLS, but it means no protection against a man in the middle.
+// For anything carrying PHI, set VerifyPeer = 1 and point CAFile at the
+// corporate root CA instead.
+set sslName = "LLMClient"
+if '##class(Security.SSLConfigs).Exists(sslName) {
+  write !,"creating SSL/TLS configuration ",sslName,!
+  kill p
+  set p("Enabled")     = 1
+  set p("Type")        = 0           // 0 = client
+  set p("VerifyPeer")  = 0           // 0 = no peer verification, no CA file needed
+  set p("Description") = "Outbound HTTPS client for LLM APIs, FHIR terminology and RxNav"
+  set sc = ##class(Security.SSLConfigs).Create(sslName, .p)
+  if 'sc {
+    write "  create failed: ",$system.Status.GetErrorText(sc),!
+    write "  retrying with defaults",!
+    set sc = ##class(Security.SSLConfigs).Create(sslName)
+    if 'sc write "  still failed: ",$system.Status.GetErrorText(sc),!
+  }
+  if ##class(Security.SSLConfigs).Exists(sslName) write "  ok",!
+} else {
+  write !,"SSL/TLS configuration ",sslName," already exists",!
+}
+
+// ---------------------------------------------------------------- namespace
+set ns = "FHIRSQLLLM"
+if '##class(Config.Namespaces).Exists(ns) {
+  write !,"creating namespace ",ns,!
+  set dbDir = "/durable/"_ns
+  do ##class(%File).CreateDirectoryChain(dbDir)
+  set props("Directory") = dbDir
+  set sc = ##class(Config.Databases).Create(ns, .props)
+  if 'sc write "  db create: ",$system.Status.GetErrorText(sc),!
+  kill nsProps
+  set nsProps("Globals") = ns
+  set nsProps("Routines") = ns
+  set sc = ##class(Config.Namespaces).Create(ns, .nsProps)
+  if 'sc write "  ns create: ",$system.Status.GetErrorText(sc),!
+} else {
+  write !,"namespace ",ns," already exists",!
+}
+
+// enable Interoperability (Ensemble) in the namespace
+zn ns
+if '##class(%Library.EnsembleMgr).IsEnsembleNamespace(ns) {
+  write "enabling interoperability in ",ns,!
+  do ##class(%Library.EnsembleMgr).EnableNamespace(ns, 1)
+}
+
+// ------------------------------------------------------------- FHIR R4 server
+// IRIS for Health ships the FHIR server; install it into this namespace and
+// expose an R4 endpoint. Skipped if the endpoint is already registered.
+zn ns
+set appKey = "/fhir/r4"
+set strategy = "HS.FHIRServer.Storage.Json.InteractionsStrategy"
+set metadata = $listbuild("hl7.fhir.r4.core@4.0.1")
+
+if ##class(%Dictionary.CompiledClass).%ExistsId("HS.FHIRServer.Installer") {
+  set exists = 0
+  try {
+    set exists = ##class(HS.FHIRServer.ServiceRegistry).EndpointExists(appKey)
+  } catch { set exists = 0 }
+
+  if 'exists {
+    write "installing FHIR server into ",ns,!
+    try {
+      do ##class(HS.FHIRServer.Installer).InstallNamespace()
+      do ##class(HS.FHIRServer.Installer).CreateEndpoint(appKey, metadata, 1, strategy)
+      write "  endpoint ready at ",appKey,!
+    } catch e {
+      write "  FHIR install failed: ",e.DisplayString(),!
+      write "  (check that this image includes the FHIR server; the licensed",!
+      write "   IRIS for Health image definitely does)",!
+    }
+  } else {
+    write "FHIR endpoint ",appKey," already exists",!
+  }
+} else {
+  write "!! HS.FHIRServer.Installer not found in this image.",!
+  write "   FHIR SQL Builder and the FHIR server need IRIS for Health,",!
+  write "   not plain IRIS. Verify the image.",!
+}
+
+// ----------------------------------------------------------------- our source
+zn ns
+write !,"importing INT.FHIRSQLLLM source",!
+do $system.OBJ.LoadDir("/home/irisowner/src", "ck", , 1)
+
+write !,"--- done ---",!
+write "Management Portal : http://localhost:52773/csp/sys/UtilHome.csp",!
+write "FHIR endpoint     : http://localhost:52773/fhir/r4/metadata",!
+write "Namespace         : ",ns,!
+halt

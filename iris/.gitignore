@@ -1,0 +1,5 @@
+# the IRIS password file must never be committed (password.txt.example ships instead)
+setup/password.txt
+setup/password.txt.done
+# durable %SYS: the whole database lives here
+data/
