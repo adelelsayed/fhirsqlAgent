@@ -361,6 +361,30 @@ These cost real time; they are documented in the classes where they bite.
 
 ---
 
+## Licence
+
+This demo is **MIT** licensed — see [LICENSE](../LICENSE). It is sample code: read
+it, copy it, change it.
+
+The third-party pieces keep their own terms, and two are worth knowing before you
+reuse anything:
+
+| component | terms |
+|---|---|
+| Synthea, and all data here | Apache 2.0; its output carries no patient-privacy restrictions |
+| SapBERT checkpoint | Apache 2.0 (`cambridgeltl/SapBERT-from-PubMedBERT-fulltext`) |
+| IRIS for Health Community | InterSystems community-edition terms; not for production use |
+| ICD-10-CM | CDC/NCHS, public domain |
+| RxNorm | free, NLM, no redistribution restriction |
+| SNOMED CT | affiliate licence required to redistribute **descriptions**; UAE has been a member since 2021, which covers use |
+| CDT (dental) | **ADA-licensed and redistribution-restricted — do not ship CDT descriptors** |
+
+No terminology content is committed to this repository. The concept table is built
+at install time from the codes present in your own FHIR repository, so whatever
+licence covers your data covers the index derived from it.
+
+---
+
 ## References
 
 1. Mukherjee, S., Shu, J., Mazumder, N., Kernell, T., Wheeler, C., Hastings, S.,
