@@ -3,3 +3,6 @@ setup/password.txt
 setup/password.txt.done
 # durable %SYS: the whole database lives here
 data/
+# the Synthea jar (~200 MB) is downloaded by synthea/generate.sh, never committed
+synthea/synthea-with-dependencies.jar
+synthea/*.jar

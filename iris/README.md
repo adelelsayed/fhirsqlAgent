@@ -112,6 +112,20 @@ cp setup/password.txt.example setup/password.txt   # then edit it
 docker compose up -d
 ```
 
+The repository does not ship the FHIR data (it is 1.5 GB of NDJSON). Generate it
+— 337 synthetic patients, no PHI — then strip the conditional references that
+would otherwise be rejected silently:
+
+```bash
+synthea/generate.sh                               # needs a JRE + the Synthea jar
+python3 sidecar/fix_refs.py data/synthea/fhir /tmp/fixed
+docker cp /tmp/fixed fhirsqlllm:/tmp/fixed
+```
+
+See [synthea/README.md](synthea/README.md) for the exact generation parameters,
+why `-p 300` yields 337 patients, and why a seed is reproducible only against the
+same Synthea build.
+
 Then set up the namespace, FHIR endpoint and SSL client config (idempotent):
 
 ```bash
@@ -290,6 +304,10 @@ iris/
   setup/
     install.script          instance bootstrap
     password.txt.example    template; the real file is gitignored
+  synthea/
+    generate.sh             regenerate the population (POSIX)
+    generate.ps1            the same, on Windows
+    README.md               provenance, the run manifest, licence and citation
   src/INT/FHIRSQLLLM/
     Setup/Installer.cls     namespace, interop, FHIR endpoint, SSL client — idempotent
     Production.cls          7 items, ExportCredential(), ProbeModels(), SetModel(), Ask()
@@ -369,5 +387,13 @@ These cost real time; they are documented in the classes where they bite.
    [`CodeSystem/$subsumes`](https://hl7.org/fhir/R4/codesystem-operation-subsumes.html) ·
    [`CodeSystem/$lookup`](https://hl7.org/fhir/R4/codesystem-operation-lookup.html)
 6. [RxNav / RxNorm API](https://lhncbc.nlm.nih.gov/RxNav/APIs/) — brand → ingredient.
-7. [Synthea](https://github.com/synthetichealth/synthea) — the synthetic
-   population used here. No real patient data is involved.
+7. Walonoski, J., Kramer, M., Nichols, J., Quina, A., Moesel, C., Hall, D.,
+   Duffett, C., Dube, K., Gallagher, T., McLachlan, S. *Synthea: An approach,
+   method, and software mechanism for generating synthetic patients and the
+   synthetic electronic health care record.* Journal of the American Medical
+   Informatics Association 2018;25(3):230–238.
+   <https://doi.org/10.1093/jamia/ocx079> ·
+   <https://github.com/synthetichealth/synthea> (Apache 2.0)
+   — the synthetic population used throughout. **No real patient data is
+   involved at any point.** Generation parameters and provenance:
+   [synthea/README.md](synthea/README.md).

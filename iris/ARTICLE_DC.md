@@ -567,9 +567,16 @@ The concept table is built *from the distinct coded values actually present in t
 repository*, so every code the agent can resolve is guaranteed to exist in the data — trivial
 to maintain when the vectors and the facts share a database, and a sync job when they do not.
 
-**This deployment:** 337 patients, 68,956 FHIR resources across 8 resource types → 199,267
+**This deployment:** 337 synthetic patients from Synthea [[10]](#ref10) (Massachusetts, seed
+20261101, 10 years of history) → 68,956 FHIR resources across 8 resource types → 199,267
 projected facts → **1,220 terminology concepts** across SNOMED CT, ICD-10, LOINC, RxNorm, CVX
 and CDT, of which 33 (2.7%) are lexically ambiguous.
+
+Synthea matters to the result and not just to the licensing. It simulates each patient's life
+module by module rather than sampling rows, so a diabetes diagnosis is followed by HbA1c
+results and a procedure by a medication — which is the only reason a care-gap question has
+anything to find. The generation scripts, the run manifest and the reproducibility caveat (a
+seed is deterministic for a given build, not across builds) are in `iris/synthea/`.
 
 ---
 
@@ -727,8 +734,17 @@ resolved against `tx.fhir.org/r4`.
 **[9]** [RxNav / RxNorm API](https://lhncbc.nlm.nih.gov/RxNav/APIs/) — brand name to
 ingredient.
 
-**[10]** [Synthea](https://github.com/synthetichealth/synthea) — the synthetic population
-used throughout. **No real patient data is involved at any point.**
+<a name="ref10"></a>**[10]** Walonoski, J., Kramer, M., Nichols, J., Quina, A., Moesel, C., Hall, D.,
+Duffett, C., Dube, K., Gallagher, T., McLachlan, S. *Synthea: An approach, method, and
+software mechanism for generating synthetic patients and the synthetic electronic health care
+record.* Journal of the American Medical Informatics Association 2018;25(3):230–238.
+doi:[10.1093/jamia/ocx079](https://doi.org/10.1093/jamia/ocx079) ·
+https://github.com/synthetichealth/synthea (Apache 2.0)
+*(The synthetic population used throughout — **no real patient data is involved at any
+point.** 337 patients, Massachusetts, seed 20261101, 10 years of history, generated with
+`v3.4.0-18-ga07a65555`. Synthea simulates each patient's life module by module, which is why
+the records carry the longitudinal structure the temporal and care-gap questions above
+depend on. The generation scripts and the full run manifest are in `iris/synthea/`.)*
 
 ---
 
